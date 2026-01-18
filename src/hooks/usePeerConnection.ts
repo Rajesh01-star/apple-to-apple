@@ -78,18 +78,7 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
       isCreatingPeer.current = false;
       onConnect();
 
-      // Process pending signals
-      if (pendingSignals.current.length > 0) {
-        console.log(`Processing ${pendingSignals.current.length} pending signals`);
-        pendingSignals.current.forEach(signal => {
-          try {
-            peer.signal(signal);
-          } catch (e) {
-            console.error('Error processing pending signal:', e);
-          }
-        });
-        pendingSignals.current = [];
-      }
+
     });
 
     peer.on('data', (data) => {
@@ -113,6 +102,19 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
     });
 
     peerRef.current = peer;
+
+    // Process pending signals immediately after creation
+    if (pendingSignals.current.length > 0) {
+      console.log(`Processing ${pendingSignals.current.length} pending signals immediately after creation`);
+      pendingSignals.current.forEach(signal => {
+        try {
+          peer.signal(signal);
+        } catch (e) {
+          console.error('Error processing pending signal:', e);
+        }
+      });
+      pendingSignals.current = [];
+    }
   }, [onSignal, onData, onConnect, onClose, onError]);
 
   const processSignal = useCallback((data: any) => {
@@ -145,10 +147,24 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
 
   const sendData = useCallback((data: any) => {
     if (peerRef.current && peerRef.current.connected) {
-      peerRef.current.send(data);
+      return peerRef.current.write(data);
     } else {
       console.error('Cannot send data: Peer not connected');
+      return false;
     }
+  }, []);
+
+  const waitForDrain = useCallback(() => {
+    return new Promise<void>((resolve) => {
+      if (!peerRef.current) return resolve();
+      const p = peerRef.current;
+      
+      const handler = () => {
+        p.removeListener('drain', handler);
+        resolve();
+      };
+      p.on('drain', handler);
+    });
   }, []);
 
   return {
@@ -159,6 +175,7 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
     processSignal,
     destroyPeer,
     sendData,
+    waitForDrain,
     isCreating: isCreatingPeer.current
   };
 }

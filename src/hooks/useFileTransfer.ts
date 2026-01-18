@@ -5,11 +5,12 @@ const CHUNK_SIZE = 16384; // 16KB chunks
 export type TransferStatus = 'IDLE' | 'WAITING_FOR_PEER' | 'CONNECTED' | 'TRANSFERRING' | 'COMPLETED' | 'ERROR';
 
 interface UseFileTransferProps {
-  sendData: (data: any) => void;
+  sendData: (data: any) => boolean;
+  waitForDrain: () => Promise<void>;
   isConnected: boolean;
 }
 
-export function useFileTransfer({ sendData, isConnected }: UseFileTransferProps) {
+export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFileTransferProps) {
   const [transferStatus, setTransferStatus] = useState<TransferStatus>('IDLE');
   const [progress, setProgress] = useState(0);
   const [receivedFiles, setReceivedFiles] = useState<any[]>([]);
@@ -112,14 +113,15 @@ export function useFileTransfer({ sendData, isConnected }: UseFileTransferProps)
         const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
         const chunk = arrayBuffer.slice(start, end);
 
-        sendData(chunk);
+        const canContinue = sendData(chunk);
 
         const currentProgress = Math.round(((i + 1) / totalChunks) * 100);
         setProgress(currentProgress);
 
-        // Flow control delay
-        if (i % 10 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
+        // correct backpressure handling
+        if (!canContinue) {
+          // console.log('⏳ Backpressure: waiting for drain'); // Optional log to avoid spam
+          await waitForDrain();
         }
       }
 

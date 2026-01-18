@@ -44,17 +44,26 @@ export function useWebRTC() {
     processSignal, 
     destroyPeer, 
     sendData, 
+    waitForDrain,
     targetPeerId, 
     isCreating,
     peer 
   } = usePeerConnection({
-    onSignal: (type, payload) => sendSignal(type, payload),
+    onSignal: (type, payload) => {
+      const callerId = getSocketId();
+      if (callerId) {
+        sendSignal(type, { ...payload, callerId });
+      } else {
+        console.warn('⚠️ Cannot send signal: Missing callerId');
+      }
+    },
     onData: onData,
     onConnect,
     onClose,
     onError
   });
 
+  // 4. File Transfer Hook
   // 4. File Transfer Hook
   const { 
     transferStatus, 
@@ -66,6 +75,7 @@ export function useWebRTC() {
     resetTransferState
   } = useFileTransfer({
     sendData,
+    waitForDrain,
     isConnected
   });
 
