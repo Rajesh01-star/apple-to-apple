@@ -49,18 +49,22 @@ export function TransferZone({ onSend, status }: TransferZoneProps) {
     <div 
       className={`animate-entry animate-delay-1 ${isDragOver ? 'drag-active' : ''}`}
       style={{ 
-        padding: '2.5rem', 
-        border: isDragOver ? '1px dashed var(--text-primary)' : '1px dashed var(--border-color)',
-        borderRadius: '8px',
-        backgroundColor: isDragOver ? 'rgba(255,255,255,0.02)' : 'transparent',
-        transition: 'all 0.2s',
+        padding: '3rem', 
+        border: isDragOver ? '1px dashed var(--text-primary)' : '1px solid var(--border-color)', // Solid, subtle border
+        borderRadius: '16px', // Smooth rounding
+        background: isDragOver ? 'var(--bg-panel)' : 'transparent', // Use panel bg on hover
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        transform: isDragOver ? 'scale(1.02)' : 'scale(1)', // Smooth scale
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', // Smooth bezier
         textAlign: 'center',
         cursor: 'pointer',
-        minHeight: '200px',
+        minHeight: '240px', // Slightly taller
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
+        boxShadow: isDragOver ? '0 10px 40px -10px rgba(0,0,0,0.5)' : 'none'
       }}
       onClick={() => fileInputRef.current?.click()}
       onDragOver={handleDragOver}
@@ -77,7 +81,7 @@ export function TransferZone({ onSend, status }: TransferZoneProps) {
       {!selectedFile ? (
         <>
           <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
-            <Upload size={24} strokeWidth={1.5} />
+            <Upload size={32} strokeWidth={1} style={{ opacity: 0.8 }} />
           </div>
           <p style={{ color: 'var(--text-primary)', fontSize: '0.95rem', fontWeight: 500, marginBottom: '0.25rem' }}>
             Drop files here

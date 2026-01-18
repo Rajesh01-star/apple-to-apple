@@ -25,7 +25,10 @@ export default function Home() {
       
       <main className="animate-entry" style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '2rem', fontWeight: 500 }}>
+        <h1 
+          className="pointer-events-none whitespace-pre-wrap bg-gradient-to-b from-white to-white/30 bg-clip-text text-center text-8xl font-semibold leading-none text-transparent"
+          style={{ fontSize: '1.5rem', marginBottom: '2rem' }}
+        >
           apple-to-apple
         </h1>
 

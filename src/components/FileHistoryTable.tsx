@@ -26,7 +26,7 @@ export function FileHistoryTable({ history }: FileHistoryTableProps) {
   const getStatusClass = (status: TransferItem['status']) => {
     switch (status) {
       case 'COMPLETED': return 'badge-success';
-      case 'TRANSFERRING': return 'badge-warning'; // or blue
+      case 'TRANSFERRING': return 'badge-warning'; 
       case 'ERROR': return 'badge-error';
       default: return 'badge-neutral';
     }
@@ -34,15 +34,15 @@ export function FileHistoryTable({ history }: FileHistoryTableProps) {
 
   if (history.length === 0) {
     return (
-      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-        <p>No file history yet.</p>
-        <p style={{ fontSize: '0.85rem', opacity: 0.6, marginTop: '0.5rem' }}>Sent and received files will appear here.</p>
+      <div className="glass-panel" style={{ padding: '4rem 2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <p style={{ opacity: 0.4, marginBottom: '0.5rem' }}>No activity yet</p>
+        <p style={{ fontSize: '0.85rem', opacity: 0.6 }}>Files you send or receive will show up here</p>
       </div>
     );
   }
 
   return (
-    <div className="glass-card animate-entry" style={{ overflow: 'hidden' }}>
+    <div className="glass-card animate-entry" style={{ overflow: 'hidden', backdropFilter: 'blur(20px)', background: 'var(--bg-panel)' }}>
       <div style={{ overflowX: 'auto' }}>
         <table className="custom-table">
           <thead>
@@ -57,17 +57,17 @@ export function FileHistoryTable({ history }: FileHistoryTableProps) {
           <tbody>
             {history.map((item) => (
               <tr key={item.id}>
-                <td>
-                  {item.direction === 'OUTGOING' ? (
-                    <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '6px', display: 'flex' }}>
-                       <ArrowUpRight size={16} color="var(--text-secondary)" />
-                    </div>
-                  ) : (
-                    <div style={{ background: 'rgba(91, 91, 214, 0.15)', padding: '6px', borderRadius: '6px', display: 'flex' }}>
-                       <ArrowDownLeft size={16} color="var(--accent-primary)" />
-                    </div>
-                  )}
-                </td>
+                  <td>
+                    {item.direction === 'OUTGOING' ? (
+                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '50%', display: 'inline-flex' }}>
+                         <ArrowUpRight size={14} color="var(--text-secondary)" />
+                      </div>
+                    ) : (
+                      <div style={{ background: 'rgba(52, 211, 153, 0.1)', padding: '8px', borderRadius: '50%', display: 'inline-flex' }}>
+                         <ArrowDownLeft size={14} color="var(--success)" />
+                      </div>
+                    )}
+                  </td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <span style={{ fontWeight: 500 }}>{item.name}</span>

@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useWebRTC } from '@/hooks/useWebRTC';
-import { Copy, CheckCircle, Loader, Zap } from 'lucide-react';
+import { Copy, CheckCircle, Loader, Zap, ArrowLeft } from 'lucide-react';
 import { FileHistoryTable } from '@/components/FileHistoryTable';
 import { TransferZone } from '@/components/TransferZone';
 
 export default function PortalRoom() {
   const params = useParams();
+  const router = useRouter();
   const portalId = params?.portalId as string;
   const { status, history, initialize, sendFile, isConnected } = useWebRTC();
 
@@ -39,11 +40,19 @@ export default function PortalRoom() {
         display: 'flex', 
         justifyContent: 'space-between', 
         alignItems: 'center', 
-        padding: '3rem 0 2rem 0',
+        padding: '2rem 0',
+        marginBottom: '2rem'
       }}>
         <div className="animate-entry">
            {/* Minimal Header - just ID */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+            <button 
+              onClick={() => router.push('/')} 
+              className="btn-icon" 
+              title="Back to Home"
+            >
+              <ArrowLeft size={20} />
+            </button>
             <h1 style={{ fontSize: '1.25rem', margin: 0, fontWeight: 500 }}>
               Portal <span style={{ opacity: 0.5 }}>/</span> <span style={{ fontFamily: 'monospace' }}>{portalId}</span>
             </h1>
@@ -58,16 +67,18 @@ export default function PortalRoom() {
             display: 'inline-flex', 
             alignItems: 'center', 
             gap: '0.5rem',
-            padding: '6px 12px', 
-            borderRadius: '6px', 
+            padding: '8px 16px', 
+            borderRadius: '20px', 
             background: 'var(--bg-panel)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             border: '1px solid var(--border-color)',
             color: status === 'CONNECTED' ? 'var(--success)' : 'var(--text-secondary)',
             fontSize: '0.8rem',
             fontWeight: 500
           }}>
             {status === 'CONNECTED' ? (
-              <div style={{ width: 8, height: 8, background: 'var(--success)', borderRadius: '50%' }}></div>
+              <div className="animate-pulse-glow" style={{ width: 8, height: 8, background: 'var(--success)', borderRadius: '50%' }}></div>
             ) : (
               <div style={{ width: 8, height: 8, background: 'var(--text-secondary)', borderRadius: '50%' }}></div>
             )}
