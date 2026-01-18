@@ -6,6 +6,11 @@ const getSignalingUrl = () => {
     return process.env.NEXT_PUBLIC_SIGNALING_SERVER;
   }
   if (typeof window !== 'undefined') {
+    // In production (Docker/Unified), default to the same origin
+    // In development, default to port 3001 (where separate server runs)
+    if (process.env.NODE_ENV === 'production') {
+      return window.location.origin;
+    }
     return `${window.location.protocol}//${window.location.hostname}:3001`;
   }
   return 'http://localhost:3001';
