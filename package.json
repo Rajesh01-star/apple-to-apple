@@ -1,23 +1,34 @@
 {
-  "name": "next-apple-to-apple",
+  "name": "apple-to-apple",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "concurrently \"npm run dev:next\" \"npm run server\"",
+    "dev:next": "next dev",
     "build": "next build",
     "start": "next start",
+    "server": "node server/signaling.mjs",
     "lint": "eslint"
   },
   "dependencies": {
+    "buffer": "^6.0.3",
+    "express": "^5.2.1",
+    "lucide-react": "^0.562.0",
     "next": "16.1.3",
+    "process": "^0.11.10",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "simple-peer": "^9.11.1",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/simple-peer": "^9.11.9",
+    "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.3",
     "tailwindcss": "^4",
