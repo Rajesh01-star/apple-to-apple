@@ -50,12 +50,8 @@ export function useWebRTC() {
     peer 
   } = usePeerConnection({
     onSignal: (type, payload) => {
-      const callerId = getSocketId();
-      if (callerId) {
-        sendSignal(type, { ...payload, callerId });
-      } else {
-        console.warn('⚠️ Cannot send signal: Missing callerId');
-      }
+      // useSignaling now handles attaching callerId and queueing if socket.id is missing
+      sendSignal(type, payload);
     },
     onData: onData,
     onConnect,

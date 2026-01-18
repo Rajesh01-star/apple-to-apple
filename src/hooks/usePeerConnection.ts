@@ -27,6 +27,10 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
   // Track if we are currently in the process of creating a peer to avoid race conditions
   const isCreatingPeer = useRef(false);
   const pendingSignals = useRef<any[]>([]);
+  const lastHeartbeat = useRef<number>(0);
+  const retryCount = useRef(0);
+  const isIntentionalClose = useRef(false);
+  const isInitiatorRef = useRef(false);
 
   const createPeer = useCallback((targetId: string, initiator: boolean) => {
     if (peerRef.current) {
@@ -41,6 +45,8 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
 
     isCreatingPeer.current = true;
     targetPeerId.current = targetId;
+    isInitiatorRef.current = initiator;
+    isIntentionalClose.current = false;
     setConnectionStatus('CONNECTING');
     
     console.log(`Creating peer - Target: ${targetId}, Initiator: ${initiator}`);
@@ -76,12 +82,33 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
       console.log('✅✅✅ PEER CONNECTED! ✅✅✅');
       setConnectionStatus('CONNECTED');
       isCreatingPeer.current = false;
+      retryCount.current = 0; // Reset retries on success
       onConnect();
 
 
     });
 
     peer.on('data', (data) => {
+      let isHeartbeat = false;
+      
+      if (typeof data === 'string' && data === 'HEARTBEAT') {
+        isHeartbeat = true;
+      } else {
+        try {
+           // 'HEARTBEAT' is 9 bytes
+           if (data.length === 9 || data.byteLength === 9) {
+             const str = new TextDecoder().decode(data);
+             if (str === 'HEARTBEAT') isHeartbeat = true;
+           }
+        } catch(e) {}
+      }
+
+      if (isHeartbeat) {
+        lastHeartbeat.current = Date.now();
+        return;
+      }
+      
+      lastHeartbeat.current = Date.now();
       onData(data);
     });
 
@@ -94,11 +121,34 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
 
     peer.on('close', () => {
       console.log('🔌 Connection closed');
-      setConnectionStatus('IDLE');
+      
+      const wasIntentional = isIntentionalClose.current;
+      const currentTarget = targetPeerId.current;
+      const wasInitiator = isInitiatorRef.current;
+
       peerRef.current = null;
       targetPeerId.current = null;
       isCreatingPeer.current = false;
-      onClose();
+      setConnectionStatus('IDLE');
+
+      // Attempt reconnection if unintentional and within retry limits
+      if (!wasIntentional && currentTarget && retryCount.current < 5) {
+        console.log(`⚠️ Unintentional close, attempting reconnect (${retryCount.current + 1}/5) in 2s...`);
+        retryCount.current += 1;
+        
+        // Keep the target ID for the reconnect attempt
+        setTimeout(() => {
+          if (!peerRef.current && !isCreatingPeer.current) {
+             createPeer(currentTarget, wasInitiator);
+          }
+        }, 2000);
+      } else {
+        if (!wasIntentional) {
+            console.error('❌ Connection lost permanently (max retries exceeded or no target)');
+            onError(new Error('Connection lost'));
+        }
+        onClose();
+      }
     });
 
     peerRef.current = peer;
@@ -135,6 +185,7 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
   }, []);
 
   const destroyPeer = useCallback(() => {
+    isIntentionalClose.current = true;
     if (peerRef.current) {
       peerRef.current.destroy();
       peerRef.current = null;
@@ -166,6 +217,38 @@ export function usePeerConnection({ onSignal, onData, onConnect, onClose, onErro
       p.on('drain', handler);
     });
   }, []);
+
+  // Connection monitoring
+  useEffect(() => {
+    if (connectionStatus !== 'CONNECTED' || !peerRef.current) return;
+
+    console.log('💓 Starting heartbeat monitoring');
+    lastHeartbeat.current = Date.now();
+
+    const heartbeatInterval = setInterval(() => {
+      if (peerRef.current && peerRef.current.connected) {
+        try {
+          peerRef.current.send('HEARTBEAT');
+        } catch (e) {
+          console.warn('Failed to send heartbeat', e);
+        }
+      }
+    }, 3000);
+
+    const timeoutInterval = setInterval(() => {
+      const timeSinceLastHeartbeat = Date.now() - lastHeartbeat.current;
+      if (timeSinceLastHeartbeat > 10000) {
+        console.error(`❌ Connection timed out (last heartbeat ${timeSinceLastHeartbeat}ms ago)`);
+        destroyPeer();
+        onError(new Error('Connection timed out'));
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      clearInterval(timeoutInterval);
+    };
+  }, [connectionStatus, destroyPeer, onError]);
 
   return {
     peer: peerRef.current,

@@ -20,6 +20,8 @@ export function useSignaling(roomId: string | null) {
   const onAnswer = useRef<((payload: SignalPayload) => void) | null>(null);
   const onIceCandidate = useRef<((payload: SignalPayload) => void) | null>(null);
 
+  const pendingQueue = useRef<{ type: string; payload: any }[]>([]);
+
   useEffect(() => {
     if (!roomId) return;
 
@@ -35,6 +37,23 @@ export function useSignaling(roomId: string | null) {
     socket.on('connect', () => {
       console.log('🔗 Connected to signaling server');
       socket.emit('join-room', roomId);
+      
+      // Flush pending queue
+      if (pendingQueue.current.length > 0) {
+        console.log(`📨 Flushing ${pendingQueue.current.length} pending signals`);
+        pendingQueue.current.forEach(({ type, payload }) => {
+          // Re-attempt sending (which will now have an ID)
+          // We can't call sendSignal directly here easily due to closure/dep cycle if we put it in deps
+          // But since we are inside useEffect, and sendSignal is outside...
+          // Actually, we can just emit directly if we know the ID is ready.
+          const id = socket.id;
+          if (id) {
+             const finalPayload = { ...payload, callerId: id };
+             socket.emit(type, finalPayload);
+          }
+        });
+        pendingQueue.current = [];
+      }
     });
 
     socket.on('user-connected', (userId: string) => {
@@ -72,8 +91,14 @@ export function useSignaling(roomId: string | null) {
   }, [roomId]);
 
   const sendSignal = useCallback((type: 'offer' | 'answer' | 'ice-candidate', payload: any) => {
-    if (socketRef.current) {
-      socketRef.current.emit(type, payload);
+    const socket = socketRef.current;
+    if (socket && socket.id) {
+      // Ensure callerId is attached
+      const finalPayload = { ...payload, callerId: socket.id };
+      socket.emit(type, finalPayload);
+    } else {
+      console.log('⏳ Socket not ready, queueing signal');
+      pendingQueue.current.push({ type, payload });
     }
   }, []);
 

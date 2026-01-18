@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback } from 'react';
+import { Buffer } from 'buffer';
 
 const CHUNK_SIZE = 16384; // 16KB chunks
 
@@ -112,8 +113,14 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
         const chunk = arrayBuffer.slice(start, end);
+        // Convert ArrayBuffer to Uint8Array (Buffer compatible) as simple-peer expects Buffer/string
+        // We use Uint8Array which is standard, and simple-peer handles it. 
+        // If strict 'Buffer' is needed, we might need Buffer.from(chunk), but let's try Uint8Array first
+        // actually the error said 'string or Buffer', implying strictly those.
+        // Let's use Buffer.from since we have the polyfill in usePeerConnection.
+        const bufferChunk = Buffer.from(chunk);
 
-        const canContinue = sendData(chunk);
+        const canContinue = sendData(bufferChunk);
 
         const currentProgress = Math.round(((i + 1) / totalChunks) * 100);
         setProgress(currentProgress);
