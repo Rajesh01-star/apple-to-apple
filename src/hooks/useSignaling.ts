@@ -1,7 +1,15 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SIGNALING_SERVER = process.env.NEXT_PUBLIC_SIGNALING_SERVER || 'http://localhost:3001';
+const getSignalingUrl = () => {
+  if (process.env.NEXT_PUBLIC_SIGNALING_SERVER) {
+    return process.env.NEXT_PUBLIC_SIGNALING_SERVER;
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.protocol}//${window.location.hostname}:3001`;
+  }
+  return 'http://localhost:3001';
+};
 
 export type SignalPayload = {
   target: string;
@@ -25,7 +33,7 @@ export function useSignaling(roomId: string | null) {
   useEffect(() => {
     if (!roomId) return;
 
-    const socket = io(SIGNALING_SERVER, {
+    const socket = io(getSignalingUrl(), {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,

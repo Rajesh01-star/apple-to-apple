@@ -65,7 +65,7 @@ export function useWebRTC() {
     transferStatus, 
     setTransferStatus, 
     progress, 
-    receivedFiles, 
+    history, 
     sendFile, 
     handleReceivedData,
     resetTransferState
@@ -144,7 +144,7 @@ export function useWebRTC() {
   return {
     status: transferStatus,
     progress,
-    receivedFiles,
+    history,
     initialize,
     sendFile,
     portalId,

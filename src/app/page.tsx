@@ -2,14 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Zap } from 'lucide-react';
+import { ArrowRight, Zap, Shield, Globe } from 'lucide-react';
 
 export default function Home() {
   const router = useRouter();
   const [joinKey, setJoinKey] = useState('');
 
   const createPortal = () => {
-    // Generate random 6-character string
     const portalId = Math.random().toString(36).substring(2, 8).toUpperCase();
     router.push(`/${portalId}`);
   };
@@ -22,51 +21,53 @@ export default function Home() {
   };
 
   return (
-    <div className="container center-flex" style={{ minHeight: '100vh' }}>
-      <main className="hero-section animate-entry">
-        <h1 className="hero-title">
-          Portal <span style={{ color: 'var(--accent-primary)' }}>P2P</span>
+    <div className="container center-flex" style={{ minHeight: '100vh', justifyContent: 'center' }}>
+      
+      <main className="animate-entry" style={{ width: '100%', maxWidth: '420px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        
+        <h1 style={{ fontSize: '1.5rem', marginBottom: '2rem', fontWeight: 500 }}>
+          apple-to-apple
         </h1>
-        <p className="hero-subtitle">
-          Secure, direct browser-to-browser file transfer. No servers, no limits.
-          Just you, your peer, and the data.
-        </p>
 
-        <div className="glass-panel" style={{ padding: '2rem', maxWidth: '400px', margin: '0 auto' }}>
-          <button 
-            onClick={createPortal} 
-            className="btn-primary" 
-            style={{ width: '100%', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-          >
-            <Zap size={20} /> Create New Portal
-          </button>
+        <div className="glass-panel" style={{ padding: '2rem', width: '100%' }}>
+            <button 
+              onClick={createPortal} 
+              className="btn-primary" 
+              style={{ width: '100%', marginBottom: '1.5rem', height: '48px', fontSize: '0.95rem' }}
+            >
+              Create Portal
+            </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', margin: '1rem 0', opacity: 0.5 }}>
-            <div style={{ flex: 1, height: '1px', background: 'var(--text-secondary)' }}></div>
-            <span style={{ padding: '0 1rem', fontSize: '0.9rem' }}>OR</span>
-            <div style={{ flex: 1, height: '1px', background: 'var(--text-secondary)' }}></div>
-          </div>
+            <div style={{ display: 'flex', alignItems: 'center', margin: '1.5rem 0' }}>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+              <span style={{ padding: '0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OR JOIN</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
+            </div>
 
-          <form onSubmit={joinPortal}>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <form onSubmit={joinPortal} style={{ display: 'flex', gap: '0.5rem'}}>
               <input
                 type="text"
                 className="glass-input"
-                placeholder="Enter Portal Key"
+                placeholder="Portal Key"
                 value={joinKey}
                 onChange={(e) => setJoinKey(e.target.value)}
               />
-              <button type="submit" className="btn-secondary" style={{ padding: '12px' }}>
-                <ArrowRight size={20} />
+              <button 
+                type="submit" 
+                className="btn-secondary"
+                style={{ padding: '0 16px' }}
+              >
+                <ArrowRight size={18} />
               </button>
-            </div>
-          </form>
+            </form>
         </div>
+        
+        <p style={{ marginTop: '2rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+          Secure P2P file transfer.
+        </p>
+
       </main>
-      
-      <footer style={{ marginTop: 'auto', padding: '2rem', opacity: 0.5, fontSize: '0.9rem' }}>
-        <p>Built with Next.js & WebRTC</p>
-      </footer>
     </div>
   )
 }
+

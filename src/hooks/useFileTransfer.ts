@@ -5,6 +5,18 @@ const CHUNK_SIZE = 16384; // 16KB chunks
 
 export type TransferStatus = 'IDLE' | 'WAITING_FOR_PEER' | 'CONNECTED' | 'TRANSFERRING' | 'COMPLETED' | 'ERROR';
 
+export interface TransferItem {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  direction: 'INCOMING' | 'OUTGOING';
+  status: 'PENDING' | 'TRANSFERRING' | 'COMPLETED' | 'ERROR';
+  progress: number;
+  blob?: Blob; // For received files
+  timestamp: number;
+}
+
 interface UseFileTransferProps {
   sendData: (data: any) => boolean;
   waitForDrain: () => Promise<void>;
@@ -13,30 +25,52 @@ interface UseFileTransferProps {
 
 export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFileTransferProps) {
   const [transferStatus, setTransferStatus] = useState<TransferStatus>('IDLE');
-  const [progress, setProgress] = useState(0);
-  const [receivedFiles, setReceivedFiles] = useState<any[]>([]);
+  const [progress, setProgress] = useState(0); // Keeping for backward compatibility/single active transfer view
+  
+  // Unified history state
+  const [history, setHistory] = useState<TransferItem[]>([]);
 
   // Refs for receiving
   const receiveBuffer = useRef<ArrayBuffer[]>([]);
   const receivedSize = useRef(0);
-  const currentFileMeta = useRef<{ name: string; size: number; type: string } | null>(null);
+  const currentFileMeta = useRef<{ id: string; name: string; size: number; type: string } | null>(null);
+
+  const updateHistoryItem = useCallback((id: string, updates: Partial<TransferItem>) => {
+    setHistory(prev => prev.map(item => item.id === id ? { ...item, ...updates } : item));
+  }, []);
 
   const handleReceivedData = useCallback((data: any) => {
     // Attempt to parse metadata logic
-    // We try to decode strings first to see if it's our JSON metadata
     try {
       const str = new TextDecoder().decode(data);
       if (str.startsWith('{"meta":')) {
         try {
           const parsed = JSON.parse(str);
-          currentFileMeta.current = parsed.meta;
+          // Received new file metadata
+          const fileId = parsed.meta.id || crypto.randomUUID(); // Fallback if sender didn't send ID
+          
+          currentFileMeta.current = { ...parsed.meta, id: fileId };
           receiveBuffer.current = [];
           receivedSize.current = 0;
+          
           setTransferStatus('TRANSFERRING');
+          
+          // Add to history
+          setHistory(prev => [{
+            id: fileId,
+            name: parsed.meta.name,
+            size: parsed.meta.size,
+            type: parsed.meta.type,
+            direction: 'INCOMING',
+            status: 'TRANSFERRING',
+            progress: 0,
+            timestamp: Date.now()
+          }, ...prev]);
+
           console.log('📦 Metadata received:', parsed.meta);
           return;
         } catch (e) {
-          // If parse fails, it might be binary data that coincidentally looks like a string, proceed to binary handling
+          // If parse fails, it might be binary data
         }
       }
     } catch (e) {
@@ -45,10 +79,6 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
 
     const meta = currentFileMeta.current;
     if (!meta) {
-      // If we don't have metadata yet, we might have received a chunk out of order or error
-      // But in this simple implementation, we just log error
-      // Note: In real app, might want to be more robust
-      // For now, treat as binary chunk if possible, but we need meta to know when to stop
       console.warn('❌ Received chunk but no metadata set');
       return;
     }
@@ -58,12 +88,14 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
 
     const pct = Math.round((receivedSize.current / meta.size) * 100);
     setProgress(pct);
+    updateHistoryItem(meta.id, { progress: pct });
 
     if (receivedSize.current >= meta.size) {
       console.log('✅ All chunks received, creating blob...');
       const blob = new Blob(receiveBuffer.current, { type: meta.type });
-      setReceivedFiles(prev => [...prev, { name: meta.name, blob }]);
+      
       setTransferStatus('COMPLETED');
+      updateHistoryItem(meta.id, { status: 'COMPLETED', progress: 100, blob });
       
       // Reset for next file
       currentFileMeta.current = null;
@@ -71,7 +103,7 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
       receivedSize.current = 0;
       console.log('🎉 File transfer complete!');
     }
-  }, []);
+  }, [updateHistoryItem]);
 
   const sendFile = useCallback(async (file: File) => {
     if (!isConnected) {
@@ -80,6 +112,19 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
       return;
     }
 
+    const fileId = crypto.randomUUID();
+    const newTransfer: TransferItem = {
+      id: fileId,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      direction: 'OUTGOING',
+      status: 'TRANSFERRING',
+      progress: 0,
+      timestamp: Date.now()
+    };
+
+    setHistory(prev => [newTransfer, ...prev]);
     setTransferStatus('TRANSFERRING');
     setProgress(0);
 
@@ -89,6 +134,7 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
       // 1. Send Metadata
       const meta = JSON.stringify({
         meta: {
+          id: fileId,
           name: file.name,
           size: file.size,
           type: file.type
@@ -106,53 +152,47 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
       console.log(`📤 Sending ${totalChunks} chunks`);
 
       for (let i = 0; i < totalChunks; i++) {
-        // Basic check if we should abort (e.g. if connection dropped externally)
-        // Since we don't have direct access to 'connected' state inside the loop continuously updating 
-        // without ref updates, we assume sendData will handle/throw if disconnected
-        
         const start = i * CHUNK_SIZE;
         const end = Math.min(start + CHUNK_SIZE, arrayBuffer.byteLength);
         const chunk = arrayBuffer.slice(start, end);
-        // Convert ArrayBuffer to Uint8Array (Buffer compatible) as simple-peer expects Buffer/string
-        // We use Uint8Array which is standard, and simple-peer handles it. 
-        // If strict 'Buffer' is needed, we might need Buffer.from(chunk), but let's try Uint8Array first
-        // actually the error said 'string or Buffer', implying strictly those.
-        // Let's use Buffer.from since we have the polyfill in usePeerConnection.
         const bufferChunk = Buffer.from(chunk);
 
         const canContinue = sendData(bufferChunk);
 
         const currentProgress = Math.round(((i + 1) / totalChunks) * 100);
         setProgress(currentProgress);
+        updateHistoryItem(fileId, { progress: currentProgress });
 
-        // correct backpressure handling
         if (!canContinue) {
-          // console.log('⏳ Backpressure: waiting for drain'); // Optional log to avoid spam
           await waitForDrain();
         }
       }
 
       console.log('✅ File sent successfully');
       setTransferStatus('COMPLETED');
+      updateHistoryItem(fileId, { status: 'COMPLETED', progress: 100 });
+
     } catch (error) {
       console.error('❌ Error sending file:', error);
       setTransferStatus('ERROR');
+      updateHistoryItem(fileId, { status: 'ERROR' });
     }
-  }, [isConnected, sendData]);
+  }, [isConnected, sendData, updateHistoryItem]);
 
   const resetTransferState = useCallback(() => {
     setTransferStatus('IDLE');
     setProgress(0);
-    // Don't clear received files as user might want to see them
+    // We do NOT clear history on reset, as users might want to keep the log
   }, []);
 
   return {
     transferStatus,
-    setTransferStatus, // Expose setter if parent needs to override (e.g. to 'WAITING_FOR_PEER')
+    setTransferStatus,
     progress,
-    receivedFiles,
+    history, // Exposed Unified History
     sendFile,
     handleReceivedData,
     resetTransferState
   };
 }
+
