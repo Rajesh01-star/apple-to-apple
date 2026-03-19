@@ -10,7 +10,7 @@ import { TransferZone } from '@/components/TransferZone';
 export default function PortalRoom() {
   const params = useParams();
   const portalId = params?.portalId as string;
-  const { status, history, initialize, sendFile, isConnected } = useWebRTC();
+  const { status, history, initialize, sendFiles, isConnected } = useWebRTC();
 
   useEffect(() => {
     if (!portalId) return;
@@ -81,7 +81,7 @@ export default function PortalRoom() {
         
         {/* Transfer Zone */}
         <section>
-          <TransferZone onSend={sendFile} status={status} />
+          <TransferZone onSend={sendFiles} status={status} />
         </section>
         
         {/* History Table - Clean, below transfer */}

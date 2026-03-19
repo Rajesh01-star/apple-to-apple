@@ -179,6 +179,12 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
     }
   }, [isConnected, sendData, updateHistoryItem]);
 
+  const sendFiles = useCallback(async (files: File[]) => {
+    for (const file of files) {
+      await sendFile(file);
+    }
+  }, [sendFile]);
+
   const resetTransferState = useCallback(() => {
     setTransferStatus('IDLE');
     setProgress(0);
@@ -191,6 +197,7 @@ export function useFileTransfer({ sendData, waitForDrain, isConnected }: UseFile
     progress,
     history, // Exposed Unified History
     sendFile,
+    sendFiles,
     handleReceivedData,
     resetTransferState
   };
